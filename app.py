@@ -23,6 +23,14 @@ amount_column = find_column(
     df.columns, 
     ["amount", "transaction amount"]
 )
+withdrawal_column = find_column(
+    df.columns,
+    ["withdrawals", "withdrawal", "debit", "debits"]
+)
+deposit_column = find_column(
+    df.columns,
+    ["deposits", "deposit", "credit", "credits"]
+)
 category_column = find_column(
     df.columns,
     ["category"]
@@ -30,16 +38,35 @@ category_column = find_column(
 print("Date:", date_column)
 print("Description:", description_column)
 print("Amount:", amount_column)
+print("Withdrawals:", withdrawal_column)
+print("Deposits:", deposit_column)
 print("Category:", category_column)
-if category_column is not None:
-    print("Category column found.")
-    data = df[[date_column, category_column, description_column, amount_column, "Income/Expense"]].copy()
-    data.columns = ["Date", "Category", "Note", "Amount", "Income/Expense"]
-else:
-    print("No category column found.")
+if amount_column is not None:
+    print("Using Amount column.")
     data = df[[date_column, description_column, amount_column, "Income/Expense"]].copy()
     data.columns = ["Date", "Note", "Amount", "Income/Expense"]
+    if category_column is not None:
+        data["Category"] = df[category_column]
+    else:
+        data["Category"] = data["Note"].apply(categorize_transaction)
+elif withdrawal_column is not None or deposit_column is not None:
+    print("Using Withdrawals and Deposits columns.")
+    data = df[[date_column, description_column]].copy()
+    data["Amount"] = 0.0
+    data["Income/Expense"] = "Expense"
+
+    if withdrawal_column is not None:
+        data.loc[df[withdrawal_column].notna(), "Amount"] = df[withdrawal_column]
+        data.loc[df[withdrawal_column].notna(), "Income/Expense"] = "Expense"
+    if deposit_column is not None:
+        data.loc[df[deposit_column].notna(), "Amount"] = df[deposit_column]
+        data.loc[df[deposit_column].notna(), "Income/Expense"] = "Income"
+    data.columns = ["Date", "Note", "Amount", "Income/Expense"]
     data["Category"] = data["Note"].apply(categorize_transaction)
+else:
+    print("Could not find an amount format.")
+    exit()
+
 data["Date"] = pd.to_datetime(data["Date"])
 print(data.head())
 
